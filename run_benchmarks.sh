@@ -11,9 +11,9 @@
 # python keypoint_registrator.py -d $DATA -f fixed_image -m moving_image -fv fixed_mask -mv moving_mask -fd fixed_disk_path -md moving_disk_path --kp_method loftr --desc_method loftr --match_method loftr -l --save trained_models/uchealth/results_loftr_uchealth_top100 --input img --top_100 #--device "cuda:0"
 
 # FIRE Inference
-DATA=data/retina_datasets/FIRE/fire_time_series.csv
+DATA=data/retina_datasets/FIRE/hard_cases.csv #data/retina_datasets/FIRE/fire_time_series.csv
 # SuperPoint+LightGlue
-python keypoint_registrator.py -d $DATA -f fixed -m moving -fv fixed_vessel_mask -mv moving_vessel_mask -fd fixed_disk_mask -md moving_disk_mask --kp_method superpoint --desc_method superpoint --match_method lightglue_superpoint -l fire --save trained_models/fire/results_superpoint+lightglue_vessels_masked_fire_top100 --input img --mask vmask --evaluate --top_100
+python keypoint_registrator.py -d $DATA -f fixed -m moving -fv fixed_vessel_mask -mv moving_vessel_mask -fd fixed_disk_mask -md moving_disk_mask --kp_method superpoint --desc_method superpoint --match_method lightglue_superpoint -l fire --save trained_models/fire/hard_cases_results_superpoint+lightglue_vessels_masked_fire_top100 --input img --mask structural --evaluate --top 100
 
 # AMD Inference
 # DATA=data/R21_AFs/pairwise_images_wmasks.csv

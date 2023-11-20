@@ -18,6 +18,7 @@ from skimage.exposure import match_histograms
 import cv2
 import random
 from PIL import Image, ImageDraw
+from scipy import stats
 
 import torch
 from torch.utils.data import DataLoader
@@ -33,6 +34,51 @@ from matplotlib import pyplot as plt
 # =================
 # Utility functions
 # =================
+
+# Compute AUC scores for image registration on the FIRE dataset
+def compute_auc(s_error, p_error, a_error):
+    # assert (len(s_error) == 71)  # Easy pairs
+    # assert (len(p_error) == 48)  # Hard pairs. Note file control_points_P37_1_2.txt is ignored
+    # assert (len(a_error) == 14)  # Moderate pairs
+
+    s_error = np.array(s_error)
+    p_error = np.array(p_error)
+    a_error = np.array(a_error)
+
+    limit = 25
+    gs_error = np.zeros(limit + 1)
+    gp_error = np.zeros(limit + 1)
+    ga_error = np.zeros(limit + 1)
+
+    accum_s = 0
+    accum_p = 0
+    accum_a = 0
+
+    for i in range(1, limit + 1):
+        gs_error[i] = np.sum(s_error < i) * 100 / len(s_error)
+        gp_error[i] = np.sum(p_error < i) * 100 / len(p_error)
+        ga_error[i] = np.sum(a_error < i) * 100 / len(a_error)
+
+        accum_s = accum_s + gs_error[i]
+        accum_p = accum_p + gp_error[i]
+        accum_a = accum_a + ga_error[i]
+
+    auc_s = accum_s / (limit * 100)
+    auc_p = accum_p / (limit * 100)
+    auc_a = accum_a / (limit * 100)
+    mAUC = (auc_s + auc_p + auc_a) / 3.0
+    return {'s': auc_s, 'p': auc_p, 'a': auc_a, 'mAUC': mAUC}
+
+def remove_outliers(data, thresh=None):
+    if thresh is not None:
+        return data <= thresh
+    q1 = np.percentile(data, 25)
+    q3 = np.percentile(data, 75)
+    iqr = q3 - q1
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q3 + 1.5 * iqr
+    inliers = (data >= lower_bound) & (data <= upper_bound)
+    return inliers
 
 def none_or_str(value):
     if value == 'None':
@@ -162,6 +208,7 @@ def main(args):
     os.makedirs(os.path.join(args.save, 'keypoint_matches'), exist_ok=True)
     os.makedirs(os.path.join(args.save, 'keypoint_matches_unfiltered'), exist_ok=True)
     os.makedirs(os.path.join(args.save, 'difference_maps'), exist_ok=True)
+    os.makedirs(os.path.join(args.save, 'histograms'), exist_ok=True)
     results_df = pd.DataFrame(columns=['Fixed', 'Registered', 'Fixed_Vessels', 'Registered_Vessels', 'Fixed_Disks', 'Registered_Disks', 'Difference Map'])
     fixed_images = []
     reg_images = []
@@ -170,8 +217,11 @@ def main(args):
     fixed_disks_images = []
     reg_disks_images = []
     checkerboard_images = []
-    registration_error_fixed_moving = []
-    registration_error_fixed_reg = []
+    if args.evaluate:
+        registration_error_fixed_moving = []
+        registration_error_fixed_reg = []
+        if args.landmarks == 'fire':
+            auc_record = dict([(category, []) for category in ['S', 'P', 'A']])
     diff_maps = []
 
     # compute the keypoint locations
@@ -197,29 +247,75 @@ def main(args):
 
         b = fixed.shape[0]
 
-        # if args.landmarks == 'fire':
-        #     ids = [f.split('/')[-1].split('_')[0] for f in fixed_paths]
-        # else:
-        #     ids = [f.split('/')[-2] for f in fixed_paths]
-        # keypoints_fixed, keypoints_moving = get_steve_kp(ids, args.landmarks) # (b, n, 2)
-        # keypoints_fixed, keypoints_moving = keypoints_fixed.float(), keypoints_moving.float()
-        # keypoints_fixed_unfiltered, keypoints_moving_unfiltered = keypoints_fixed, keypoints_moving
+        if args.manual:
+            if args.landmarks == 'fire':
+                ids = [f.split('/')[-1].split('_')[0] for f in fixed_paths]
+            else:
+                ids = [f.split('/')[-2] for f in fixed_paths]
+            keypoints_fixed, keypoints_moving = get_steve_kp(ids, args.landmarks) # (b, n, 2)
+            keypoints_fixed, keypoints_moving = keypoints_fixed.float(), keypoints_moving.float()
+            keypoints_fixed_unfiltered, keypoints_moving_unfiltered = keypoints_fixed, keypoints_moving
+            timing_detection = [0]
+        else:
+            keypoints_fixed, keypoints_moving, keypoints_fixed_unfiltered, keypoints_moving_unfiltered, timing_detection = get_keypoints(
+                fixed,
+                moving,
+                fixed_vessels,
+                fixed_disks,
+                moving_vessels,
+                moving_disks,
+                kp_method=args.kp_method,
+                desc_method=args.desc_method,
+                match_method=args.match_method,
+                device=device,
+                inp=args.input,
+                mask=args.mask,
+                top=args.top
+            )
 
-        keypoints_fixed, keypoints_moving, keypoints_fixed_unfiltered, keypoints_moving_unfiltered, timing_detection = get_keypoints(
-            fixed,
-            moving,
-            fixed_vessels,
-            fixed_disks,
-            moving_vessels,
-            moving_disks,
-            kp_method=args.kp_method,
-            desc_method=args.desc_method,
-            match_method=args.match_method,
-            device=device,
-            inp=args.input,
-            mask=args.mask,
-            top100=args.top_100
-        )
+        # ==========================
+        # Iterative point refinement
+        # ==========================
+
+        # Start the timer for this iteration
+        start_time = time.time()
+        
+        # compute initial least squares affine using key points
+        A = compute_lq_affine(keypoints_fixed, keypoints_moving).float()
+
+        # compute registered keypoints
+        keypoints_moving_ = torch.cat([keypoints_moving, torch.ones(1, keypoints_moving.shape[1], 1)], dim=2)
+        keypoints_moving_ = torch.permute(keypoints_moving_, (0, 2, 1)).float()
+        keypoints_registered = torch.bmm(A[:, :2, :], keypoints_moving_) # (b, 2, n)
+        keypoints_registered = torch.permute(keypoints_registered, (0, 2, 1)) # (b, n, 2)
+
+        # compute distances
+        rmse_fr = torch.sqrt(torch.sum((keypoints_fixed - keypoints_registered)**2, dim=-1)).ravel()
+
+        # threshold
+        plt.figure()
+        plt.hist(rmse_fr.ravel(), bins=np.arange(min(rmse_fr), max(rmse_fr) + 0.5, 0.5))
+        plt.savefig(os.path.join(args.save, f'histograms/hist_before_{step}.png'))
+
+        # get rid of outlier points
+        inliers = remove_outliers(rmse_fr.numpy())
+        keypoints_fixed =  keypoints_fixed[0][inliers].unsqueeze(0)
+        keypoints_moving = keypoints_moving[0][inliers].unsqueeze(0)
+        A = compute_lq_affine(keypoints_fixed, keypoints_moving).float()
+        rmse_filtered = rmse_fr.ravel()[inliers]
+
+        # threshold
+        plt.figure()
+        plt.hist(rmse_filtered, bins=np.arange(min(rmse_filtered), max(rmse_filtered) + 0.5, 0.5))
+        plt.savefig(os.path.join(args.save, f'histograms/hist_after_{step}.png'))
+        plt.close()
+
+        end_time = time.time()
+        timing_registration = end_time - start_time
+        runtime = sum(timing_detection + [timing_registration])
+        timings.append(runtime)
+
+        # ==========================
 
         for i in range(b):
             kp_match_save_path = os.path.join(os.path.join(args.save, 'keypoint_matches'), f'{step}_' + os.path.basename(moving_paths[i]).split('.')[0] + '.png')
@@ -235,18 +331,24 @@ def main(args):
             plt.savefig(kp_match_save_path)
             plt.close()
 
-        # Start the timer for this iteration
-        start_time = time.time()
-        # compute least squares affine using key points
-        A = compute_lq_affine(keypoints_fixed, keypoints_moving).float()
-        # Start the timer for this iteration
-        end_time = time.time()
+        # ==========================
+        # One step affine prediction
+        # ==========================
 
-        timing_registration = end_time - start_time
+        # # Start the timer for this iteration
+        # start_time = time.time()
+        # # compute least squares affine using key points
+        # A = compute_lq_affine(keypoints_fixed, keypoints_moving).float()
+        # # Start the timer for this iteration
+        # end_time = time.time()
+
+        # timing_registration = end_time - start_time
         
-        # Put together all the timings
-        runtime = sum(timing_detection + [timing_registration])
-        timings.append(runtime)
+        # # Put together all the timings
+        # runtime = sum(timing_detection + [timing_registration])
+        # timings.append(runtime)
+
+        # ==========================
 
         print(f'Runtime per image: {runtime}s')
 
@@ -263,20 +365,29 @@ def main(args):
         keypoints_moving_ = torch.cat([keypoints_moving, torch.ones(1, keypoints_moving.shape[1], 1)], dim=2)
         keypoints_moving_ = torch.permute(keypoints_moving_, (0, 2, 1)).float()
         keypoints_registered = torch.bmm(A[:, :2, :], keypoints_moving_) # (b, 2, n)
+        # keypoints_registered = torch.bmm(A, keypoints_moving_) # (b, 3, n)
+        # keypoints_registered = keypoints_registered[:, :2, :] / keypoints_registered[:, 2, :][:, None, :] # (b, 2, n)
         keypoints_registered = torch.permute(keypoints_registered, (0, 2, 1)) # (b, n, 2)
 
-        # post-process keypoints?
+        # post-process keypoints
         if args.evaluate:
             if args.landmarks == 'fire':
                 keypoints_fixed = keypoints_fixed * (2912 / 256)
                 keypoints_moving = keypoints_moving * (2912 / 256)
                 keypoints_registered = keypoints_registered * (2912 / 256)
 
-        # compute the error
-        mse_fm = torch.mean(torch.abs(keypoints_fixed - keypoints_moving), dim=(-2, -1))
-        mse_fr = torch.mean(torch.abs(keypoints_fixed - keypoints_registered), dim=(-2, -1))
-        registration_error_fixed_moving.append(torch.mean(mse_fm).item())
-        registration_error_fixed_reg.append(torch.mean(mse_fr).item())
+            # compute the error
+            rmse_fr = torch.sqrt(torch.sum((keypoints_fixed - keypoints_registered)**2, dim=-1)).mean()
+
+            mae_fm = torch.mean(torch.abs(keypoints_fixed - keypoints_moving), dim=(-2, -1))
+            mae_fr = torch.mean(torch.abs(keypoints_fixed - keypoints_registered), dim=(-2, -1))
+            registration_error_fixed_moving.append(torch.mean(mae_fm).item())
+            registration_error_fixed_reg.append(torch.mean(mae_fr).item())
+
+            if args.landmarks == 'fire':
+                category = [f.split('/')[-1][0] for f in fixed_paths]
+                for c in category:
+                    auc_record[c].append(rmse_fr)
 
         # warp moving images using affine matrix
         mask = warp_affine(torch.ones_like(fixed), A)
@@ -395,9 +506,16 @@ def main(args):
     results_df['Registered_Vessels'] = reg_vessels_images
     results_df['Fixed_Disks'] = fixed_disks_images
     results_df['Registered_Disks'] = reg_disks_images
-    results_df['TRE_fixed_moving'] = registration_error_fixed_moving
-    results_df['TRE_fixed_registered'] = registration_error_fixed_reg
-    results_df.to_csv(os.path.join(args.save, 'results.csv'), index=False)
+
+    if args.evaluate:
+        results_df['TRE_fixed_moving'] = registration_error_fixed_moving
+        results_df['TRE_fixed_registered'] = registration_error_fixed_reg
+        results_df.to_csv(os.path.join(args.save, 'results.csv'), index=False)
+
+        # compute mAUC
+        if args.landmarks == 'fire':
+            auc = compute_auc(auc_record['S'], auc_record['P'], auc_record['A'])
+            print('S: %.3f, P: %.3f, A: %.3f, mAUC: %.3f' % (auc['s'], auc['p'], auc['a'], auc['mAUC']))
 
     print(f'Average runtime per image: {mean(timings)}s')
 
@@ -419,10 +537,11 @@ if __name__ == '__main__':
     parser.add_argument('--match_method', help='Descriptor matching method', choices=['lightglue_sift', 'lightglue_superpoint', 'bf', 'flann', 'loftr'])
     parser.add_argument('--input', help='Input image to keypoint detector', default='img', choices=['img', 'vmask', 'dmask'])
     parser.add_argument('--mask', help='Mask out certain predited keypoints', default=None, choices=['vmask', 'dmask', 'structural'])
-    parser.add_argument('--top_100', help='Select only top 100 confident keypoint matches', action='store_true')
+    parser.add_argument('--top', help='Select only top N confident keypoint matches', type=int, default=None)
 
     # visualize args
     parser.add_argument('-l', '--landmarks', help='Ground Truth Landmarks source', default=None, type=str)
+    parser.add_argument('--manual', help='Use manually annotated landmarks for registration.', action='store_true')
     
     # others
     parser.add_argument('-e', '--evaluate', help='Flag for whether to compute landmark error or not.', action='store_true')

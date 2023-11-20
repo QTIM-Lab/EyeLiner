@@ -8,6 +8,7 @@ from scipy.spatial.distance import cdist
 from scipy.spatial import distance_matrix
 
 from torchvision.transforms import ToPILImage
+from PIL import Image
 
 from lightglue import LightGlue, SuperPoint, DISK, SIFT
 from lightglue.utils import load_image, rbd
@@ -211,7 +212,7 @@ matchers = {
     'flann': flann_matcher
 }
 
-def get_keypoints(fixed_image, moving_image, fixed_vessel, fixed_disk, moving_vessel, moving_disk, kp_method='seg', desc_method='sift', match_method='lightglue', device='cpu', inp='img', mask=None, top100=False):
+def get_keypoints(fixed_image, moving_image, fixed_vessel, fixed_disk, moving_vessel, moving_disk, kp_method='seg', desc_method='sift', match_method='lightglue', device='cpu', inp='img', mask=None, top=None):
     ''' Detects and matches keypoints in images '''
     
     # load keypoint detector
@@ -337,22 +338,30 @@ def get_keypoints(fixed_image, moving_image, fixed_vessel, fixed_disk, moving_ve
 
         elif mask == 'structural':
             # threshold masks
-            fixed_structural_mask = torch.clip(fixed_vessel * (1 - fixed_disk), min=0, max=1)
-            moving_structural_mask = torch.clip(moving_vessel * (1 - moving_disk), min=0, max=1)
-            fixed_vessel = np.uint8((fixed_structural_mask.permute(0, 2, 3, 1).numpy()[0, :, :, 0] * 255) > 128)
-            moving_vessel = np.uint8((moving_structural_mask.permute(0, 2, 3, 1).numpy()[0, :, :, 0] * 255) > 128)        
+            fixed_vessel_mask = torch.clip(fixed_vessel * (1 - fixed_disk), min=0, max=1)
+            moving_vessel_mask = torch.clip(moving_vessel * (1 - moving_disk), min=0, max=1)
+            fixed_vessel = np.uint8((fixed_vessel_mask.permute(0, 2, 3, 1).numpy()[0, :, :, 0] * 255) > 128)
+            moving_vessel = np.uint8((moving_vessel_mask.permute(0, 2, 3, 1).numpy()[0, :, :, 0] * 255) > 128)
+
+            fixed_disk_mask = cv2.distanceTransform(np.uint8(fixed_disk.permute(0, 2, 3, 1)[0, :, :, 0].numpy() * 255), cv2.DIST_C, 5)
+            fixed_disk_mask = fixed_disk_mask == 1
+            moving_disk_mask = cv2.distanceTransform(np.uint8(moving_disk.permute(0, 2, 3, 1)[0, :, :, 0].numpy() * 255), cv2.DIST_C, 5)
+            moving_disk_mask = moving_disk_mask == 1
+
+            fixed_mask = np.clip(fixed_vessel + fixed_disk_mask, 0, 1)
+            moving_mask = np.clip(moving_vessel + moving_disk_mask, 0, 1)
 
         # fixed keypoints
-        fixed_keypoints_x = fixed_keypoints[:, 0] # (N, 2)
-        fixed_keypoints_y = fixed_keypoints[:, 1] # (N, 2)
+        fixed_keypoints_x = fixed_keypoints[:, 0] # (N,2) -> (N,) 
+        fixed_keypoints_y = fixed_keypoints[:, 1] # (N,)
 
         # moving keypoints
-        moving_keypoints_x = moving_keypoints[:, 0]
-        moving_keypoints_y = moving_keypoints[:, 1]
+        moving_keypoints_x = moving_keypoints[:, 0] # (N,)
+        moving_keypoints_y = moving_keypoints[:, 1] # (N,)
 
         # filter keypoints
-        fmask = fixed_vessel[fixed_keypoints_y.int(), fixed_keypoints_x.int()]
-        mmask = moving_vessel[moving_keypoints_y.int(), moving_keypoints_x.int()]
+        fmask = fixed_mask[fixed_keypoints_y.int(), fixed_keypoints_x.int()]
+        mmask = moving_mask[moving_keypoints_y.int(), moving_keypoints_x.int()]
         mask = torch.tensor([a*b for a,b in zip(fmask, mmask)]).bool()
 
         scores_filtered = scores[mask]
@@ -367,11 +376,11 @@ def get_keypoints(fixed_image, moving_image, fixed_vessel, fixed_disk, moving_ve
         start_time = time.time()
 
         # select top100 most confident point matches
-        if top100:
+        if top is not None:
             confidences = scores_filtered
-            top_100 = torch.argsort(confidences, descending=True)[:min(100, len(confidences))]
-            fixed_keypoints_filtered = fixed_keypoints_filtered[top_100]
-            moving_keypoints_filtered = moving_keypoints_filtered[top_100]
+            top_N = torch.argsort(confidences, descending=True)[:min(top, len(confidences))]
+            fixed_keypoints_filtered = fixed_keypoints_filtered[top_N]
+            moving_keypoints_filtered = moving_keypoints_filtered[top_N]
 
         # Start the timer for this iteration
         end_time = time.time()
@@ -384,11 +393,11 @@ def get_keypoints(fixed_image, moving_image, fixed_vessel, fixed_disk, moving_ve
         # Start the timer for this iteration
         start_time = time.time()
         # select top100 most confident point matches
-        if top100:        
+        if top is not None:        
             confidences = scores
-            top_100 = torch.argsort(confidences, descending=True)[:min(100, len(confidences))]
-            fixed_keypoints_filtered = fixed_keypoints_filtered[top_100]
-            moving_keypoints_filtered = moving_keypoints_filtered[top_100]
+            top_N = torch.argsort(confidences, descending=True)[:min(top, len(confidences))]
+            fixed_keypoints_filtered = fixed_keypoints_filtered[top_N]
+            moving_keypoints_filtered = moving_keypoints_filtered[top_N]
 
         # Start the timer for this iteration
         end_time = time.time()
