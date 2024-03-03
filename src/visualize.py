@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import torch
 from patchify import patchify, unpatchify
@@ -38,3 +39,37 @@ def create_checkerboard(image1, image2, patch_size=8):
     # cb_image = Image.fromarray(np.uint8(cb_image))
     cb_image = torch.permute(torch.tensor(cb_image), (2, 0, 1))
     return cb_image
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+def visualize_deformation_grid(sampling_grid, image_shape, step_size=10, save_to=None):
+    """
+    Visualizes the deformation field represented by the sampling grid.
+
+    Args:
+    - sampling_grid (torch.Tensor): A PyTorch tensor representing the sampling grid with normalized coordinates.
+    - image_shape (tuple): Shape of the input image.
+    - step_size (int): Step size for displaying arrows.
+
+    Returns:
+    - deformation_field (np.ndarray): Array representing the deformation field.
+    """
+    # Convert normalized coordinates to image coordinates
+    normalized_grid = sampling_grid.numpy()  # [height, width, 2]
+
+    grid_x = np.linspace(0, 256, image_shape[1])
+    grid_y = np.linspace(0, 256, image_shape[0])
+    deformed_x = (normalized_grid[..., 0] + 1) * (image_shape[0] - 1) / 2
+    deformed_y = (normalized_grid[..., 1] + 1) * (image_shape[1] - 1) / 2
+
+    # Plot deformation field with specified step size
+    plt.figure(figsize=(8, 8))
+    # plt.imshow(np.ones(image_shape), cmap='gray')  # Show blank canvas
+    plt.quiver(grid_x[::step_size], grid_y[::step_size], deformed_x[::step_size, ::step_size] - grid_x[::step_size, None], deformed_y[::step_size, ::step_size] - grid_y[::step_size, None], scale=1, scale_units='xy', angles='xy', color='r')
+    plt.gca().invert_yaxis()  # Invert y-axis to match image coordinates
+    plt.title('Deformation Field')
+    plt.xlabel('X-axis')
+    plt.ylabel('Y-axis')
+    plt.savefig(save_to)
+    plt.close()

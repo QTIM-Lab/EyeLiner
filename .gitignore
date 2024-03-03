@@ -4,6 +4,12 @@
 *-checkpoint.ipynb
 *.pth
 trained_models
+trained_models_new
+*.txt
+results_files
+legacy
+data
+image_pairs
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -28,9 +28,9 @@ class CustomDataset(Dataset):
         self.output_col = output_col
         self.data = pd.read_csv(self.path)
         self.inputs = self.data[self.input_col] if input_col is not None else None
-        # self.inputs = self.inputs.apply(lambda x: x.replace('/data/retina_datasets_preprocessed/Dynamic_Cropped/', 'data/retina_datasets/'))
+        # self.inputs = self.inputs.apply(lambda x: x.replace('/data/retina_datasets_preprocessed/Dynamic_Cropped/', 'data/'))
         self.outputs = self.data[self.output_col] if output_col is not None else None
-        # self.outputs = self.outputs.apply(lambda x: x.replace('/data/retina_datasets_preprocessed/Dynamic_Cropped/', 'data/retina_datasets/'))
+        # self.outputs = self.outputs.apply(lambda x: x.replace('/data/retina_datasets_preprocessed/Dynamic_Cropped/', 'data/'))
 
     def __getitem__(self, index):
         x = torch.tensor([self.inputs[index]]).float()
@@ -92,8 +92,8 @@ class ImageDataset(CustomDataset):
         # grab inputs and output images (if provided)
         if (self.inputs is not None) and (self.outputs is not None):
             x, y = self.inputs[index], self.outputs[index]
-            x = '/sddata/data/retina_datasets/UCHealth_10_images/' + x if 'UCHealth' in x else '/sddata/' + x
-            y = '/sddata/data/retina_datasets/UCHealth_10_images/' + y if 'UCHealth' in y else '/sddata/' + y
+            x = '/sddata/' + x #if 'UCHealth' in x else x
+            y = '/sddata/' + y #if 'UCHealth' in y else y
             
             # get fixed image
             x = LoadImage(image_only=True)(x)
@@ -114,8 +114,8 @@ class ImageDataset(CustomDataset):
         # get vessel masks, if provided
         if (self.input_vessels is not None) and (self.output_vessels is not None):
             x_v, y_v = self.input_vessels[index], self.output_vessels[index]
-            x_v = '/sddata/data/retina_datasets/UCHealth_10_images/' + x_v if 'UCHealth' in x_v else '/sddata/' + x_v # '/sddata'
-            y_v = '/sddata/data/retina_datasets/UCHealth_10_images/' + y_v if 'UCHealth' in y_v else '/sddata/' + y_v
+            x_v = '/sddata/' + x_v #if 'UCHealth' in x_v else x_v
+            y_v = '/sddata/' + y_v #if 'UCHealth' in y_v else y_v
 
             # get fixed label
             x_v = LoadImage(image_only=True)(x_v)
@@ -134,8 +134,8 @@ class ImageDataset(CustomDataset):
         # get optic disc masks, if provided
         if (self.input_od is not None) and (self.output_od is not None):
             x_d, y_d = self.input_od[index], self.output_od[index]
-            x_d = '/sddata/data/retina_datasets/UCHealth_10_images/' + x_d if 'UCHealth' in x_d else '/sddata/' + x_d
-            y_d = '/sddata/data/retina_datasets/UCHealth_10_images/' + y_d if 'UCHealth' in y_d else '/sddata/' + y_d
+            x_d = '/sddata/' + x_d #if 'UCHealth' in x_d else x_d
+            y_d = '/sddata/' + y_d #if 'UCHealth' in y_d else y_d
 
             # get fixed label
             x_d = LoadImage(image_only=True)(x_d)
@@ -225,12 +225,12 @@ class ImageDataset(CustomDataset):
             y_d,
             x_d,
             dist_map,
-            '/sddata' + self.outputs[index] if self.outputs is not None else '',
-            '/sddata' + self.inputs[index] if self.inputs is not None else '',
-            '/sddata' + self.output_vessels[index] if self.output_vessels is not None else '',
-            '/sddata' + self.input_vessels[index] if self.input_vessels is not None else '', 
-            '/sddata' + self.output_od[index] if self.output_od is not None else '',
-            '/sddata' + self.input_od[index] if self.input_od is not None else '', 
+            '/sddata/data/' + self.outputs[index] if self.outputs is not None else '',
+            '/sddata/data/' + self.inputs[index] if self.inputs is not None else '',
+            '/sddata/data/' + self.output_vessels[index] if self.output_vessels is not None else '',
+            '/sddata/data/' + self.input_vessels[index] if self.input_vessels is not None else '', 
+            '/sddata/data/' + self.output_od[index] if self.output_od is not None else '',
+            '/sddata/data/' + self.input_od[index] if self.input_od is not None else '', 
             centroids
         )
 

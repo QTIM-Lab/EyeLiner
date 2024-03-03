@@ -242,11 +242,36 @@ def get_keypoints(fixed_image, moving_image, fixed_vessel, fixed_disk, moving_ve
 
         # contains both the keypoints and descriptors
         if inp == 'vmask':
+            # preprocess inputs
+            fixed_vessel = (fixed_vessel > 0.5).float()
+            moving_vessel = (moving_vessel > 0.5).float()
+
             fixed_inputs = descriptor.extract(fixed_vessel.to(device))
             moving_inputs = descriptor.extract(moving_vessel.to(device))
+
         elif inp == 'dmask':
+            # preprocess disk inputs
+            fixed_disk_mask = 1 - (fixed_disk > 0.5).float()
+            moving_disk_mask = 1 - (moving_disk > 0.5).float()
+
             fixed_inputs = descriptor.extract(fixed_disk.to(device))
             moving_inputs = descriptor.extract(moving_disk.to(device))
+
+        elif inp == 'structural':
+            # preprocess vessel inputs
+            fixed_vessel = (fixed_vessel > 0.5).float()
+            moving_vessel = (moving_vessel > 0.5).float()
+
+            # preprocess disk inputs
+            fixed_disk_mask = 1 - (fixed_disk > 0.5).float()
+            moving_disk_mask = 1 - (moving_disk > 0.5).float()
+
+            fixed_mask = fixed_vessel * fixed_disk_mask
+            moving_mask = moving_vessel * moving_disk_mask
+
+            fixed_inputs = descriptor.extract(fixed_mask.to(device))
+            moving_inputs = descriptor.extract(moving_mask.to(device))
+        
         else:
             fixed_inputs = descriptor.extract(fixed_image.to(device))
             moving_inputs = descriptor.extract(moving_image.to(device))
@@ -261,9 +286,31 @@ def get_keypoints(fixed_image, moving_image, fixed_vessel, fixed_disk, moving_ve
 
         # contains both the keypoints and descriptors
         if inp == 'vmask':
+            # preprocess inputs
+            fixed_vessel = (fixed_vessel > 0.5).float()
+            moving_vessel = (moving_vessel > 0.5).float()
             correspondences = compute_keypoints_loftr(fixed_vessel.to(device), moving_vessel.to(device), device=device) # (N, 2)
+        
         elif inp == 'dmask':
+            # preprocess disk inputs
+            fixed_disk_mask = 1 - (fixed_disk > 0.5).float()
+            moving_disk_mask = 1 - (moving_disk > 0.5).float()
             correspondences = compute_keypoints_loftr(fixed_disk.to(device), moving_disk.to(device), device=device) # (N, 2)
+        
+        elif inp == 'structural':
+            # preprocess vessel inputs
+            fixed_vessel = (fixed_vessel > 0.5).float()
+            moving_vessel = (moving_vessel > 0.5).float()
+
+            # preprocess disk inputs
+            fixed_disk_mask = 1 - (fixed_disk > 0.5).float()
+            moving_disk_mask = 1 - (moving_disk > 0.5).float()
+
+            fixed_mask = fixed_vessel * fixed_disk_mask
+            moving_mask = moving_vessel * moving_disk_mask
+
+            correspondences = compute_keypoints_loftr(fixed_mask.to(device), moving_mask.to(device), device=device) # (N, 2)
+
         else:
             correspondences = compute_keypoints_loftr(fixed_image.to(device), moving_image.to(device), device=device) # (N, 2)
 
@@ -292,6 +339,8 @@ def get_keypoints(fixed_image, moving_image, fixed_vessel, fixed_disk, moving_ve
             fixed_features, moving_features = descriptor()
         else:
             fixed_features, moving_features = descriptor(fixed_keypoints, moving_keypoints, fixed_image, moving_image)
+
+    # print(fixed_keypoints.shape, moving_keypoints.shape)
 
     # match keypoint descriptors
     if 'lightglue' in match_method:
@@ -333,8 +382,20 @@ def get_keypoints(fixed_image, moving_image, fixed_vessel, fixed_disk, moving_ve
 
         if mask == 'vmask':
             # threshold masks
-            fixed_vessel = np.uint8((fixed_vessel.permute(0, 2, 3, 1).numpy()[0, :, :, 0] * 255) > 128)
-            moving_vessel = np.uint8((moving_vessel.permute(0, 2, 3, 1).numpy()[0, :, :, 0] * 255) > 128)
+            fixed_mask = np.uint8((fixed_vessel.permute(0, 2, 3, 1).numpy()[0, :, :, 0] * 255) > 128)
+            moving_mask = np.uint8((moving_vessel.permute(0, 2, 3, 1).numpy()[0, :, :, 0] * 255) > 128)
+
+        elif mask == 'dmask':
+
+            # threshold masks
+            fixed_mask = np.uint8(np.array(Image.open('data/retina_datasets/FIRE/Masks/mask.png').resize((256, 256))) > 128)
+            moving_mask = np.uint8(np.array(Image.open('data/retina_datasets/FIRE/Masks/mask.png').resize((256, 256))) > 128)
+
+            fixed_disk_mask = np.uint8(((1 - fixed_disk).permute(0, 2, 3, 1).numpy()[0, :, :, 0] * 255) > 128)
+            moving_disk_mask = np.uint8(((1 - moving_disk).permute(0, 2, 3, 1).numpy()[0, :, :, 0] * 255) > 128)
+
+            fixed_mask = fixed_mask * fixed_disk_mask
+            moving_mask = moving_mask * moving_disk_mask
 
         elif mask == 'structural':
             # threshold masks
