@@ -1,7 +1,11 @@
+''' Visualization functions '''
+
 import sys
 import numpy as np
 import torch
 from patchify import patchify, unpatchify
+from PIL import Image, ImageDraw
+import random
 
 def extract_patches(image, patch_size):
     width, height = image.size
@@ -40,8 +44,33 @@ def create_checkerboard(image1, image2, patch_size=8):
     cb_image = torch.permute(torch.tensor(cb_image), (2, 0, 1))
     return cb_image
 
-import numpy as np
-import matplotlib.pyplot as plt
+def draw_coordinates(img, coordinates_tensor, marker_size=2, shape='o', seed=1399):    
+    # Create a drawing context
+    draw = ImageDraw.Draw(img)
+    
+    # Convert torch tensor to a list of tuples
+    coordinates = [(int(coord[0]), int(coord[1])) for coord in coordinates_tensor]
+
+    random.seed(seed)
+    
+    # Draw filled circles at the coordinates on the image
+    for coord in coordinates:
+        x, y = coord
+
+        # Generate a random RGB color
+        marker_color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        
+        # Draw a plus shape centered at the coordinate
+        if shape == '+':
+            plus_size = 5
+            draw.line([(x - plus_size, y), (x + plus_size, y)], fill=marker_color, width=2)
+            draw.line([(x, y - plus_size), (x, y + plus_size)], fill=marker_color, width=2)
+        else:
+            circle_radius = marker_size
+            draw.ellipse([x - circle_radius, y - circle_radius, x + circle_radius, y + circle_radius], fill=marker_color)
+    
+    # Save the modified image
+    return img
 
 def visualize_deformation_grid(sampling_grid, image_shape, step_size=10, save_to=None):
     """

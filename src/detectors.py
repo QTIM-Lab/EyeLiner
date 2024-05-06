@@ -6,10 +6,7 @@ import kornia as K
 import kornia.feature as KF
 from scipy.spatial.distance import cdist
 from scipy.spatial import distance_matrix
-
-from torchvision.transforms import ToPILImage
 from PIL import Image
-
 from lightglue import LightGlue, SuperPoint, DISK, SIFT
 from lightglue.utils import load_image, rbd
 
@@ -340,8 +337,6 @@ def get_keypoints(fixed_image, moving_image, fixed_vessel, fixed_disk, moving_ve
         else:
             fixed_features, moving_features = descriptor(fixed_keypoints, moving_keypoints, fixed_image, moving_image)
 
-    # print(fixed_keypoints.shape, moving_keypoints.shape)
-
     # match keypoint descriptors
     if 'lightglue' in match_method:
         # Start the timer for this iteration
@@ -464,4 +459,36 @@ def get_keypoints(fixed_image, moving_image, fixed_vessel, fixed_disk, moving_ve
         end_time = time.time()
         timings += [end_time - start_time]
 
-    return torch.stack([fixed_keypoints_filtered]), torch.stack([moving_keypoints_filtered]), torch.stack([fixed_keypoints]), torch.stack([moving_keypoints]), timings
+    return torch.stack([fixed_keypoints_filtered]), torch.stack([moving_keypoints_filtered]), torch.stack([fixed_keypoints]), torch.stack([moving_keypoints])
+
+def get_keypoints_splg(fixed_image, moving_image):
+    ''' Detects and matches keypoints in images '''
+
+    # load kp detector
+    kp_detector = detectors['superpoint'].to(fixed_image.device)
+    matcher = matchers['lightglue_superpoint'].to(fixed_image.device)
+
+    # run inference
+    fixed_inputs = kp_detector.extract(fixed_image)
+    moving_inputs = kp_detector.extract(moving_image)
+
+    # extract keypoints from image
+    fixed_keypoints, moving_keypoints = fixed_inputs['keypoints'], moving_inputs['keypoints']
+
+    # compute descriptors for keypoints
+    fixed_features, moving_features = fixed_inputs['descriptors'], moving_inputs['descriptors']
+
+    # match keypoint descriptors
+    fixed_data = {
+        'keypoints': fixed_keypoints,
+        'descriptors': fixed_features
+    }
+    moving_data = {
+        'keypoints': moving_keypoints,
+        'descriptors': moving_features
+    }
+    matches01 = matcher({"image0": fixed_data, "image1": moving_data}) 
+    matches = matches01["matches"][0]
+    scores = matches01["scores"][0]
+    fixed_keypoints, moving_keypoints = fixed_keypoints[0][matches[..., 0]], moving_keypoints[0][matches[..., 1]]
+    return torch.stack([fixed_keypoints]), torch.stack([moving_keypoints])
