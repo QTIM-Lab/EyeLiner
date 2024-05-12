@@ -136,7 +136,16 @@ python src/eval.py \
 --device cuda:0
 ```
 
-The parameters `-d`, `-f`, `-m`, `--save` and `--device` are the same as in the previous section. Particularly, the `-d` arguments takes the results csv that is generated in the previous section. The `-k` argument takes the name of the column containing the path to keypoints in the fixed and moving image. This is typically a text file with four columns, the first two columns representing the x and y coordinates of the fixed image, and the last two columns for the moving image. The `-r` takes the name of the column storing the path to the registration in the csv. 
+The parameters `-d`, `-f`, `-m`, `--save` and `--device` are the same as in the previous section. Particularly, the `-d` arguments takes the results csv that is generated in the previous section. The `-k` argument takes the name of the column containing the path to keypoints in the fixed and moving image. This is typically a text file with four columns, the first two columns representing the x and y coordinates of the fixed image, and the last two columns for the moving image. The `-r` takes the name of the column storing the path to the registration in the csv.
+
+Running this script will create a folder containing three subfolders:
+
+1. `registration_images`: This contains the moving images registered to the fixed images.
+2. `ckbd_images`: This will contain the registration checkerboards of the fixed and registered images as pngs. 
+3. `diff_map_images`: This will contain the difference/subtraction maps of the fixed and registered images as pngs.
+4. `flicker_images`: This contains gifs of the flicker between fixed and registered images.
+
+and a csv which is the same as the original dataset csv, containing extra columns pointing to the files in the sub-folders.
 
 ## Coming Soon: EyeLiner-S
 
