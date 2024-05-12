@@ -950,6 +950,20 @@ test = ["hypothesis (>=6.46.1)", "pytest (>=7.3.2)", "pytest-xdist (>=2.2.0)"]
 xml = ["lxml (>=4.9.2)"]
 
 [[package]]
+name = "patchify"
+version = "0.2.3"
+description = "A library that helps you split image into small, overlappable patches, and merge patches back into the original image."
+optional = false
+python-versions = ">=3.7,<4.0"
+files = [
+    {file = "patchify-0.2.3-py3-none-any.whl", hash = "sha256:4bd4f80c83280b36c6968cb4d802bde28cd11446cc8ace94e0aa14f573fcf41b"},
+    {file = "patchify-0.2.3.tar.gz", hash = "sha256:6cc409124f34ceee672f1931d818923f88f5116f323ac7bb9be7e6c5d0845502"},
+]
+
+[package.dependencies]
+numpy = ">=1,<2"
+
+[[package]]
 name = "pillow"
 version = "10.3.0"
 description = "Python Imaging Library (Fork)"
@@ -1369,4 +1383,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "81905705c33221d7b45494fd2468d103ef2bf1cdba046fd01f05cd9360a31ac2"
+content-hash = "8ded858317c0ba9f42452045a308b64f06744909b44e8ad7e7bfb2fc9c2d0715"

@@ -1,11 +1,15 @@
 ''' Visualization functions '''
 
 import sys
+import imageio
 import numpy as np
 import torch
 from patchify import patchify, unpatchify
 from PIL import Image, ImageDraw
+from lightglue import viz2d
+from matplotlib import pyplot as plt
 import random
+from torchvision.transforms import Grayscale
 
 def extract_patches(image, patch_size):
     width, height = image.size
@@ -44,6 +48,43 @@ def create_checkerboard(image1, image2, patch_size=8):
     cb_image = torch.permute(torch.tensor(cb_image), (2, 0, 1))
     return cb_image
 
+def create_flicker(image1, image2, frame_rate=0.5, duration=10, output_path='alternating.gif'):
+    # Ensure images are of the same shape
+    assert image1.shape == image2.shape, "Images must have the same shape"
+
+    # Convert tensors to numpy arrays
+    image1 = np.uint8(image1.permute(1, 2, 0).cpu().numpy() * 255)  # Convert to (h, w, c)
+    image2 = np.uint8(image2.permute(1, 2, 0).cpu().numpy() * 255)  # Convert to (h, w, c)
+
+    # Create frames for the GIF by alternating between the two images
+    frames = []
+    num_frames = int(frame_rate * duration)
+    for i in range(num_frames):
+        if i % 2 == 0:
+            frames.append(image1)
+        else:
+            frames.append(image2)
+    imageio.mimsave(output_path, frames, format='GIF')
+
+def create_diff_map(image1, image2, save_path='diff_map.png'):
+
+    # convert to grayscale
+    image1_gs = Grayscale()(image1)
+    image2_gs = Grayscale()(image2)
+
+    # take difference map
+    diff_map = image1_gs - image2_gs
+    diff_map = torch.permute(diff_map, (1, 2, 0)).numpy()
+    diff_map = (diff_map + 1) / 2
+    
+    plt.figure()
+    plt.imshow(diff_map, cmap='hot', interpolation='nearest')
+    plt.axis('off')
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close()
+
 def draw_coordinates(img, coordinates_tensor, marker_size=2, shape='o', seed=1399):    
     # Create a drawing context
     draw = ImageDraw.Draw(img)
@@ -71,6 +112,12 @@ def draw_coordinates(img, coordinates_tensor, marker_size=2, shape='o', seed=139
     
     # Save the modified image
     return img
+
+def visualize_kp_matches(fixed, moving, keypoints_fixed, keypoints_moving):
+    # visualize keypoint correspondences
+    viz2d.plot_images([fixed.squeeze(0), moving.squeeze(0)])
+    viz2d.plot_matches(keypoints_fixed.squeeze(0), keypoints_moving.squeeze(0), color="lime", lw=0.2)
+    return
 
 def visualize_deformation_grid(sampling_grid, image_shape, step_size=10, save_to=None):
     """

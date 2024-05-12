@@ -10,7 +10,7 @@ from PIL import Image
 from torchvision.transforms import Grayscale, Resize, ToTensor
 
 class ImageDataset(Dataset):
-    def __init__(self, path, input_col, output_col, input_vessel_col=None, output_vessel_col=None, input_od_col=None, output_od_col=None, input_dim=(512, 512), cmode='rgb', input='img'):
+    def __init__(self, path, input_col, output_col, input_vessel_col=None, output_vessel_col=None, input_od_col=None, output_od_col=None, input_dim=(512, 512), cmode='rgb', input='img', keypoints_col=None, registration_col=None):
         super(ImageDataset, self).__init__()
         self.path = path
         self.data = pd.read_csv(self.path)
@@ -31,6 +31,12 @@ class ImageDataset(Dataset):
         self.input_od = self.data[input_od_col] if input_od_col is not None else None
         self.output_od = self.data[output_od_col] if output_od_col is not None else None
 
+        # evaluation
+        self.keypoints_col = keypoints_col
+        self.registration_col = registration_col
+        self.keypoints = self.data[keypoints_col] if keypoints_col is not None else None
+        self.registrations = self.data[registration_col] if registration_col is not None else None
+
         self.cmode = cmode
         self.input_dim = input_dim if isinstance(input_dim, tuple) else (input_dim, input_dim)
         self.input = input
@@ -44,6 +50,12 @@ class ImageDataset(Dataset):
         x = ToTensor()(x)
         return x
 
+    def load_registration(self, path):
+        return torch.load(path)
+    
+    def load_keypoints(self, path):
+        return
+
     def __len__(self):
         return len(self.data)
 
@@ -55,10 +67,13 @@ class ImageDataset(Dataset):
         x, y = self.inputs[index], self.outputs[index]
         x = self.load_image(x)
         y = self.load_image(y)
+        data['fixed_image'] = x
+        data['moving_image'] = y
 
+        # add registration model inputs
         if self.input == 'img':
-            data['fixed_image'] = x
-            data['moving_image'] = y
+            data['fixed_input'] = x
+            data['moving_input'] = y
 
         elif self.input == 'vessel':
             assert self.input_vessels is not None
@@ -66,8 +81,8 @@ class ImageDataset(Dataset):
             x_v, y_v = self.input_vessels[index], self.output_vessels[index]
             x_v = self.load_image(x_v)
             y_v = self.load_image(y_v)
-            data['fixed_image'] = x_v
-            data['moving_image'] = y_v
+            data['fixed_input'] = x_v
+            data['moving_input'] = y_v
 
         elif self.input == 'disk':
             assert self.input_od is not None
@@ -75,10 +90,10 @@ class ImageDataset(Dataset):
             x_d, y_d = self.input_od[index], self.output_od[index]
             x_d = self.load_image(x_d)
             y_d = self.load_image(y_d)
-            data['fixed_image'] = x_d
-            data['moving_image'] = y_d
+            data['fixed_input'] = x_d
+            data['moving_input'] = y_d
 
-        elif self.input == 'structural':
+        elif self.input == 'peripheral':
             assert self.input_vessels is not None
             assert self.output_vessels is not None
             assert self.input_od is not None
@@ -102,7 +117,22 @@ class ImageDataset(Dataset):
             x_s = fixed_vessel * fixed_disk_mask
             y_s = moving_vessel * moving_disk_mask
 
-            data['fixed_image'] = x_v
-            data['moving_image'] = y_v
+            data['fixed_input'] = x_s
+            data['moving_input'] = y_s
+
+        # add registration
+        if self.registrations is not None:
+            reg = self.registrations[index]
+            if isinstance(reg, str):
+                data['theta'] = self.load_registration(reg)
+            else:
+                data['theta'] = None
+
+        # add keypoints
+        if self.keypoints is not None:
+            kp = self.keypoints[index]
+            kp = self.load_keypoints(kp)
+            data['fixed_keypoints'] = kp[:, :2]
+            data['moving_keypoints'] = kp[:, 2:]
 
         return data

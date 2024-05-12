@@ -80,20 +80,63 @@ Output:
 <div style="display:flex;">
     <div style="text-align:center; width:33%;">
         <p>Fixed</p>
-        <img src="assets/image_0.jpg" alt="Fixed" style="width:100%;">
+        <img src="assets/image_0.jpg" alt="Fixed" style="width:256px; height:256px;">
     </div>
     <div style="text-align:center; width:33%;">
         <p>Moving</p>
-        <img src="assets/image_1.jpg" alt="Moving" style="width:100%;">
+        <img src="assets/image_1.jpg" alt="Moving" style="width:256px; height:256px;">
     </div>
     <div style="text-align:center; width:33%;">
         <p>Registered</p>
-        <img src="assets/image_1_reg.jpg" alt="Registered" style="width:100%;">
+        <img src="assets/image_1_reg.jpg" alt="Registered" style="width:256px; height:256px;">
     </div>
 </div>
 
+## Run pipeline on dataset
 
+To run our pipeline on a full dataset of images, you will need to provide a csv pointing to the image pairs for registration. The following code snippet runs EyeLiner on a csv dataset.
 
+```bash
+python src/main.py \
+-d /path/to/dataset \
+-f image0 \
+-m image1 \
+-fv vessel0 \
+-mv vessel1 \
+-fd None \
+-md None \
+--input vessel \
+--reg_method tps \
+--lambda_tps 1 \
+--save results/ \
+--device cuda:0
+```
+
+The csv must contain atleast two columns: one for the fixed image, and one for the moving image - the names of these columns are provided for the `-f` and `-m` arguments. If you wish to register the images giving the vessels as input instead, then the csv must contain two additional columns with the vessel paths for the fixed and moving image - the names of these columns are provided for the `-fv` and `-mv` arguments. Finally, we try the vessel mask as input, but excluding the vessels within the optic disk region, which we define as a peripheral mask. For this, we provide the fixed and moving image optic disk columns in arguments `-fd` and `md`. The input to the model is specified in the `--input` flag as {`img`, `vessel`, `peripheral`}. The `--reg_method` specifies the type of registration performed on the anatomical keypoints, which is either `affine` or `tps` (thin-plate spline). The `--lambda_tps` value controls the amount of deformation in the registration. The remaining two arguments indicate the folder where to save the results and the device to perform registration on (`cuda:0` or `cpu`). 
+
+Running this script will create a folder containing three subfolders:
+
+1. `registration_params`: This will contain the registration models (affine or deformation fields) as pth files. 
+2. `registration_keypoints`: This will contain visualizations of the keypoint matches between image pairs in each row of the dataframe.
+
+and a csv which is the same as the original dataset csv, containing extra columns pointing to the files in the sub-folders.
+
+## Evaluate registrations
+
+Evaluating the registrations requires you to run the following script:
+
+```bash
+python src/eval.py \
+-d /path/to/csv \
+-f image0 \
+-m image1 \
+-k None \
+-r registration \
+--save results/ \
+--device cuda:0
+```
+
+The parameters `-d`, `-f`, `-m`, `--save` and `--device` are the same as in the previous section. Particularly, the `-d` arguments takes the results csv that is generated in the previous section. The `-k` argument takes the name of the column containing the path to keypoints in the fixed and moving image. This is typically a text file with four columns, the first two columns representing the x and y coordinates of the fixed image, and the last two columns for the moving image. The `-r` takes the name of the column storing the path to the registration in the csv. 
 
 ## Coming Soon: EyeLiner-S
 

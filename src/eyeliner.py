@@ -4,8 +4,8 @@
 import cv2
 import torch
 from torch.nn import functional as F
-from .utils import normalize_coordinates, unnormalize_coordinates, TPS
-from .detectors import get_keypoints_splg
+from utils import normalize_coordinates, unnormalize_coordinates, TPS
+from detectors import get_keypoints_splg
 
 class EyeLinerP():
 
@@ -18,13 +18,13 @@ class EyeLinerP():
         self.device = device
     
     def get_corr_keypoints(self, fixed_image, moving_image):
-        try:
-            keypoints_fixed, keypoints_moving = get_keypoints_splg(fixed_image, moving_image)
-            n = keypoints_fixed.shape[1]
-            if n < 3:
-                print(f'Found {n} keypoints only! Cannot register!')
-        except:
-            print('Not able to register image pair!')
+        # try:
+        keypoints_fixed, keypoints_moving = get_keypoints_splg(fixed_image, moving_image)
+        # n = keypoints_fixed.shape[1]
+        # if n < 3:
+        #     print(f'Found {n} keypoints only! Cannot register!')
+        # except:
+        #     print('Not able to register image pair!')
 
         return keypoints_fixed, keypoints_moving
     
@@ -69,34 +69,29 @@ class EyeLinerP():
     
         return theta
 
-    def apply_transform(self, theta, moving_image):
+    @staticmethod
+    def apply_transform(theta, moving_image):
 
-        if self.reg == 'affine':
+        if theta.shape[1:] == (3, 3):
             warped_image = torch.permute(moving_image, (1, 2, 0)).numpy() # (h, w, c)
             affine_mat = theta.numpy() # (3, 3)
             warped_image = cv2.warpAffine(warped_image, affine_mat[:2, :], (warped_image.shape[0], warped_image.shape[1]))
 
-        elif self.reg == 'tps':
+        elif theta.shape[1:] == (moving_image.shape[2], moving_image.shape[3], 2):
             warped_image = F.grid_sample(
                 moving_image, grid=theta, mode="bilinear", padding_mode="zeros", align_corners=False
             )
 
         else:
-            raise NotImplementedError('Only affine and thin-plate spline registration supported.')
+            raise NotImplementedError('Only affine and deformation fields supported.')
 
         return warped_image
 
     def __call__(self, data):
 
-        # extract data
-        fixed_image = data['fixed_image'].to(self.device)
-        moving_image = data['moving_image'].to(self.device)
-
-        # 1. Blood vessel and optic disk extraction
-        # fixed_vessels = self.vessel_net(fixed_image)
-        # moving_vessels = self.vessel_net(moving_image)
-        # fixed_disk = self.disk_net(fixed_image)
-        # moving_disk = self.disk_net(moving_image)
+        # 1. extract data
+        fixed_image = data['fixed_input'].to(self.device)
+        moving_image = data['moving_input'].to(self.device)
 
         # 2. Deep Keypoint Detection
         kp_fixed, kp_moving = self.get_corr_keypoints(fixed_image, moving_image)
@@ -104,7 +99,12 @@ class EyeLinerP():
         # 3. Registration module
         theta = self.get_registration(kp_fixed, kp_moving)
 
-        return theta
+        cache = {
+            'kp_fixed': kp_fixed,
+            'kp_moving': kp_moving
+        }
+
+        return theta, cache
 
 class EyeLinerS():
 
