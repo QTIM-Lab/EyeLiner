@@ -149,3 +149,28 @@ def visualize_deformation_grid(sampling_grid, image_shape, step_size=10, save_to
     plt.ylabel('Y-axis')
     plt.savefig(save_to)
     plt.close()
+
+def create_video_from_tensor(tensor, output_file, frame_rate):
+    """
+    Create a video from a PyTorch tensor.
+
+    Parameters:
+    tensor (torch.Tensor): The input tensor with shape (n, c, h, w).
+    output_file (str): The path to the output video file.
+    frame_rate (int): The frame rate of the output video.
+    """
+    # Check tensor shape
+    assert len(tensor.shape) == 4, "Tensor must have shape (n, c, h, w)"
+    
+    # Convert tensor to numpy array and transpose to (n, h, w, c) for imageio
+    video_frames = tensor.permute(0, 2, 3, 1).cpu().numpy()
+
+    # Normalize to range [0, 255] if necessary (depends on your tensor's range)
+    video_frames = ((video_frames - video_frames.min()) / (video_frames.max() - video_frames.min()) * 255).astype(np.uint8)
+
+    # Write to video file
+    with imageio.get_writer(output_file, fps=frame_rate) as writer:
+        for frame in video_frames:
+            writer.append_data(frame)
+
+    print(f"Video saved as {output_file}")

@@ -19,6 +19,11 @@ scipy = "^1.13.0"
 scikit-image = "^0.23.2"
 monai = "^1.3.0"
 patchify = "^0.2.3"
+imageio = {extras = ["ffmpeg"], version = "^2.34.1"}
+jupyter = "^1.0.0"
+openpyxl = "^3.1.4"
+moviepy = "^1.0.3"
+python-pptx = "^0.6.23"
 
 
 [build-system]

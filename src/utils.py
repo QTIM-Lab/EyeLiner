@@ -277,3 +277,15 @@ def warp_affine(moving, A):
     warped_images = torch.stack(warped, dim=0)
     return warped_images
 
+def compute_dice(seg1, seg2, smooth=1e-6):
+    # Flatten the tensors
+    seg1_flat = seg1.flatten()
+    seg2_flat = seg2.flatten()
+    
+    # Compute intersection and union
+    intersection = (seg1_flat * seg2_flat).sum()
+    union = seg1_flat.sum() + seg2_flat.sum()
+    
+    # Compute Dice score
+    dice = (2. * intersection + smooth) / (union + smooth)
+    return dice.item()

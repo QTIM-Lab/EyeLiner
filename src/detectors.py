@@ -178,8 +178,8 @@ def compute_keypoints_loftr(fixed_image, moving_image, device='cpu'):
 
     # prepare model input
     input_dict = {
-    "image0": K.color.rgb_to_grayscale(fixed_image),  # LofTR works on grayscale images only
-    "image1": K.color.rgb_to_grayscale(moving_image),
+    "image0": K.color.rgb_to_grayscale(fixed_image.to(device)),  # LofTR works on grayscale images only
+    "image1": K.color.rgb_to_grayscale(moving_image.to(device)),
     }
 
     # run inference with kp model
@@ -491,4 +491,12 @@ def get_keypoints_splg(fixed_image, moving_image):
     matches = matches01["matches"][0]
     scores = matches01["scores"][0]
     fixed_keypoints, moving_keypoints = fixed_keypoints[0][matches[..., 0]], moving_keypoints[0][matches[..., 1]]
+    return torch.stack([fixed_keypoints]), torch.stack([moving_keypoints])
+
+def get_keypoints_loftr(fixed_image, moving_image):
+    device = fixed_image.device
+    correspondences = compute_keypoints_loftr(fixed_image.unsqueeze(0), moving_image.unsqueeze(0), device)
+    fixed_keypoints = correspondences["keypoints0"]
+    moving_keypoints = correspondences["keypoints1"]
+    scores = correspondences['confidence'].cpu()
     return torch.stack([fixed_keypoints]), torch.stack([moving_keypoints])
