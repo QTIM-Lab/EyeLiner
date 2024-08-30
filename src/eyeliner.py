@@ -4,8 +4,8 @@
 import cv2
 import torch
 from torch.nn import functional as F
-from utils import normalize_coordinates, unnormalize_coordinates, TPS
-from detectors import get_keypoints_splg, get_keypoints_loftr
+from .utils import normalize_coordinates, unnormalize_coordinates, TPS
+from .detectors import get_keypoints_splg, get_keypoints_loftr
 from kornia.geometry.ransac import RANSAC
 
 class EyeLinerP():
@@ -78,9 +78,11 @@ class EyeLinerP():
     def apply_transform(theta, moving_image):
 
         if theta.shape == (3, 3):
-            warped_image = torch.permute(moving_image.squeeze(0), (1, 2, 0)).numpy() # (h, w, c)
-            affine_mat = theta.squeeze(0).numpy() # (3, 3)
+            warped_image = torch.permute(moving_image, (1, 2, 0)).numpy() # (h, w, c)
+            affine_mat = theta.numpy() # (3, 3)
             warped_image = cv2.warpAffine(warped_image, affine_mat[:2, :], (warped_image.shape[0], warped_image.shape[1]))
+            if warped_image.ndim == 2: # adding extra dim for grayscale warp
+                warped_image = warped_image[:, :, None]
             warped_image = torch.tensor(warped_image).permute(2, 0, 1)
 
         elif theta.shape == (moving_image.shape[1], moving_image.shape[2], 2):
@@ -134,7 +136,7 @@ class EyeLinerP():
         kp_fixed, kp_moving = self.get_corr_keypoints(fixed_image, moving_image)
 
         # 3. Keypoint Refinement
-        # kp_fixed, kp_moving = self.KPRefiner(kp_fixed, kp_moving)
+        kp_fixed, kp_moving = self.KPRefiner(kp_fixed, kp_moving)
 
         # 4. Registration module
         theta = self.get_registration(kp_fixed, kp_moving)
