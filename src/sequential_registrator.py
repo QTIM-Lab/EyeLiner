@@ -38,7 +38,7 @@ def create_logger(log_file_name):
 def parse_args():
     parser = argparse.ArgumentParser()
     # data args
-    parser.add_argument('-d', '--data', default='/sddata/projects/GA_progression_modeling/results/08212024_talisa/area_comparisons.csv', type=str, help='Dataset csv path')
+    parser.add_argument('-d', '--data', default='/sddata/projects/GA_progression_modeling/results/09172024_coris/area_comparisons_af.csv', type=str, help='Dataset csv path')
     parser.add_argument('-m', '--mrn', default='PID', type=str, help='MRN column')
     parser.add_argument('-l', '--lat', default='Laterality', type=str, help='Laterality column')
     parser.add_argument('-sq', '--sequence', default='ExamDate', type=str, help='Sequence ordering column')
@@ -55,7 +55,7 @@ def parse_args():
 
     # misc
     parser.add_argument('--device', default='cuda:0', help='Device to run program on')
-    parser.add_argument('--save', default='results/ga_08212024_talisa_1/', help='Location to save results')
+    parser.add_argument('--save', default='results/ga_09172024_coris_af/', help='Location to save results')
     args = parser.parse_args()
     return args
 

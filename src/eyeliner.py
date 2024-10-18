@@ -4,8 +4,8 @@
 import cv2
 import torch
 from torch.nn import functional as F
-from .utils import normalize_coordinates, unnormalize_coordinates, TPS
-from .detectors import get_keypoints_splg, get_keypoints_loftr
+from utils import normalize_coordinates, unnormalize_coordinates, TPS
+from detectors import get_keypoints_splg, get_keypoints_loftr
 from kornia.geometry.ransac import RANSAC
 
 class EyeLinerP():

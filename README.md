@@ -147,9 +147,35 @@ Running this script will create a folder containing three subfolders:
 
 and a csv which is the same as the original dataset csv, containing extra columns pointing to the files in the sub-folders.
 
-## Coming Soon: EyeLiner-S
+## EyeLiner-S
 
-Very soon, we will release EyeLiner-S: A pipeline for performing registration of an entire longitudinal sequence of images.
+To register an entire longitudinal sequence of images, we introduce EyeLiner-S. All you need to provide is a csv with the images column name, patient ID column name, laterality column name, image ordering column name, and additional parameters similar to the EyeLiner-P script. Run the following script:
+
+```bash
+python src/sequential_registrator.py \
+-d /path/to/csv \
+-m patient_id_column_name \
+-l laterality_column_name \
+-sq image_ordering_column_name \
+-i img_column_name \
+-v vessel_column_name \
+-o disk_column_name \
+--inp input to registration algorithm [img/vessel/structural]
+--reg2start set this flag if you want to register every image to the first image in the sequence. By default registers each image to the registered version of the previous image.
+--reg_method tps \
+--lambda_tps 1 \
+--save results/ \
+--device cuda:0
+```
+
+Running this script will create a folder containing four subfolders:
+
+1. `registration_params`: This will contain the registration models (affine or deformation fields) as pth files. 
+2. `registration_keypoint_matches`: This will contain visualizations of the keypoint matches between the fixed and moving image, where the moving image is the t-th image of the sequence, and the fixed image is either the first image or t-1-th image of the sequence depending on whether you set the `--reg2start` flag or not.
+3. `registration_videos`: This is a folder containing videos of the registered images which are stitched together into a movie.
+4. `logs`: For every patient study registered, a logs file is generated which indicates the progress of the registration.
+
+and a csv which is the same as the input csv, containing extra columns pointing to the files in the sub-folders.
 
 ## License
 The pre-trained weights of LightGlue and the code provided in this repository are released under the [Apache-2.0 license](./LICENSE). [DISK](https://github.com/cvlab-epfl/disk) follows this license as well but SuperPoint follows [a different, restrictive license](https://github.com/magicleap/SuperPointPretrainedNetwork/blob/master/LICENSE) (this includes its pre-trained weights and its [inference file](./lightglue/superpoint.py)). [ALIKED](https://github.com/Shiaoming/ALIKED) was published under a BSD-3-Clause license. 
