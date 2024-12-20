@@ -7,6 +7,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
+import albumentations as A
 from torchvision.transforms import Grayscale, Resize, ToTensor
 
 class ImageDataset(Dataset):
@@ -194,9 +195,16 @@ class SequentialDataset(Dataset):
         self.input = input
 
     def load_image(self, path):
-        x = Image.open(path)
+        x = Image.open(path.replace('~', '/home/veturiy'))
         x = Resize(self.input_dim)(x)
         x = Grayscale()(x) if self.cmode == 'gray' else x
+
+        # # updated
+        # x = np.array(x)
+        # x = A.Resize(*self.input_dim, p=1)(image=x)['image']
+        # x = A.ToGray(p=1.0)(image=x)['image'] if self.cmode == 'gray' else x
+        # x = A.CLAHE(p=1)(image=x)['image']
+
         x = ToTensor()(x)
         return x
 

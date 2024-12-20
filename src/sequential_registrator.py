@@ -11,7 +11,7 @@ import pandas as pd
 import torch
 from torchvision.transforms import ToPILImage
 from data import SequentialDataset
-from utils import none_or_str
+from eyeliner.utils import none_or_str
 from eyeliner import EyeLinerP
 from visualize import visualize_kp_matches, create_video_from_tensor
 from matplotlib import pyplot as plt
@@ -38,7 +38,7 @@ def create_logger(log_file_name):
 def parse_args():
     parser = argparse.ArgumentParser()
     # data args
-    parser.add_argument('-d', '--data', default='/sddata/projects/GA_progression_modeling/results/09172024_coris/area_comparisons_af.csv', type=str, help='Dataset csv path')
+    parser.add_argument('-d', '--data', default='/sddata/projects/GA_progression_modeling/results/11182024_coris/area_comparisons_af.csv', type=str, help='Dataset csv path')
     parser.add_argument('-m', '--mrn', default='PID', type=str, help='MRN column')
     parser.add_argument('-l', '--lat', default='Laterality', type=str, help='Laterality column')
     parser.add_argument('-sq', '--sequence', default='ExamDate', type=str, help='Sequence ordering column')
@@ -54,8 +54,8 @@ def parse_args():
     parser.add_argument('--lambda_tps', help='TPS lambda parameter', type=float, default=1.)
 
     # misc
-    parser.add_argument('--device', default='cuda:0', help='Device to run program on')
-    parser.add_argument('--save', default='results/ga_09172024_coris_af/', help='Location to save results')
+    parser.add_argument('--device', default='cuda:1', help='Device to run program on')
+    parser.add_argument('--save', default='/sddata/projects/GA_progression_modeling/results/11182024_coris/registration_results_af_2/', help='Location to save results')
     args = parser.parse_args()
     return args
 
@@ -271,8 +271,8 @@ def main(args):
                 sequence_registered_inputs.append(reg_input)
                 statuses.append('Pass')
             else:
-                sequence_registered_images.append(None)
-                sequence_registered_inputs.append(None)
+                sequence_registered_images.append(data['moving_image'])
+                sequence_registered_inputs.append(data['moving_input'])
                 statuses.append('Fail') 
 
         # create registration video and save

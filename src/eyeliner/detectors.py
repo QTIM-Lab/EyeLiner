@@ -7,8 +7,8 @@ import kornia.feature as KF
 from scipy.spatial.distance import cdist
 from scipy.spatial import distance_matrix
 from PIL import Image
-from lightglue import LightGlue, SuperPoint, DISK, SIFT
-from lightglue.utils import load_image, rbd
+from .lightglue import LightGlue, SuperPoint, DISK, SIFT
+from .lightglue.utils import load_image, rbd
 
 def skeletonize(img):
     """ OpenCV function to return a skeletonized version of img, a Mat object"""

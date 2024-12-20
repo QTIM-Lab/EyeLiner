@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from patchify import patchify, unpatchify
 from PIL import Image, ImageDraw
-from lightglue import viz2d
+from eyeliner.lightglue import viz2d
 from matplotlib import pyplot as plt
 import random
 from torchvision.transforms import Grayscale
