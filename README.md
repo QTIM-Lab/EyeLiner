@@ -37,8 +37,8 @@ pyenv activate eyeliner
 Now we install the required packages into the virtual environment. We also use poetry to manage package installations. Install [Poetry](https://python-poetry.org/docs/) if not already done. Run `poetry install` and all dependencies will be installed.
 
 ```bash
-git clone git@github.com:QTIM-Lab/LightGlue.git
-cd LightGlue
+git clone git@github.com:QTIM-Lab/EyeLiner.git
+cd EyeLiner
 poetry install
 ```
 
