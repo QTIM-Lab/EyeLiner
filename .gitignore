@@ -177,4 +177,5 @@ cython_debug/
 
 # misc
 misc
+all_results/
 PAVE_registration_results

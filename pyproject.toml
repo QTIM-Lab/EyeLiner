@@ -23,8 +23,11 @@ imageio = {extras = ["ffmpeg"], version = "^2.34.1"}
 jupyter = "^1.0.0"
 openpyxl = "^3.1.4"
 moviepy = "^1.0.3"
-python-pptx = "^0.6.23"
 albumentations = "^1.4.21"
+tensorboard = "^2.18.0"
+coloredlogs = "^15.0.1"
+termcolor = "^2.5.0"
+imgaug = "^0.4.0"
 
 
 [build-system]

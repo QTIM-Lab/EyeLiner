@@ -24,6 +24,14 @@ This repository hosts the code for the EyeLiner pipeline. This codebase is a mod
 
 ## Installation and demo [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1GfUcmGXQ4gltKXEDT4F8wnI8iTAxBQkG?usp=sharing)
 
+### Install
+
+#### Install via pip
+
+🎉🎉🎉 EyeLiner is now pip installable! Can simply to `pip install eyeliner` on a system or environment running atleast python version 3.10.4 or greater. Then run the demo below.
+
+#### Install and setup from github module
+
 We use pyenv to setup environments. Install [PyEnv](https://github.com/pyenv/pyenv).
 
 Run the following commands in the terminal to setup environment.
@@ -44,11 +52,18 @@ poetry install
 
 We provide a [demo notebook](demo.ipynb) which shows how to perform registration of a retinal image pair. Note that for our registrations, we rely on masks of the blood vessels and the optic disk. We obtain these using the [AutoMorph](https://github.com/rmaphoh/AutoMorph) repo. But you may use any repo to obtain vessel and disk segmentations.
 
+### Demo
 Here is a minimal script to match two images:
 
 ```python
+
+# if installed by cloning git repo
 from src.utils import load_image
 from src.eyeliner import EyeLinerP
+
+# if install using pip
+from eyeliner.utils import load_image
+from eyeliner import EyeLinerP
 
 # Load EyeLiner API
 eyeliner = EyeLinerP(

@@ -260,12 +260,12 @@ def main(args):
                 try:
                     reg_image = eyeliner.apply_transform(theta[1].squeeze(0), data['moving_image'])
                 except:
-                    reg_image = eyeliner.apply_transform(theta, data['moving_image'])
+                    reg_image = eyeliner.apply_transform(theta.squeeze(0), data['moving_image'])
 
                 try:
                     reg_input = eyeliner.apply_transform(theta[1].squeeze(0), data['moving_input'])
                 except:
-                    reg_input = eyeliner.apply_transform(theta, data['moving_input'])
+                    reg_input = eyeliner.apply_transform(theta.squeeze(0), data['moving_input'])
 
                 sequence_registered_images.append(reg_image)
                 sequence_registered_inputs.append(reg_input)
