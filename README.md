@@ -28,9 +28,9 @@ This repository hosts the code for the EyeLiner pipeline. This codebase is a mod
 
 #### Install via pip
 
-🎉🎉🎉 EyeLiner is now pip installable! Can simply to `pip install eyeliner` on a system or environment running atleast python version 3.10.4 or greater. Then run the demo below.
+🎉🎉🎉 EyeLiner is now pip installable! Can simply run `pip install eyeliner` on a system or python environment running atleast python version 3.10.4. Then run the demo below.
 
-#### Install and setup from github module
+#### Install and setup from github
 
 We use pyenv to setup environments. Install [PyEnv](https://github.com/pyenv/pyenv).
 
@@ -83,10 +83,10 @@ data = {
 }
 
 # register images
-theta = eyeliner(data)
+theta, cache = eyeliner(data) # theta is the registration matrix/sampling grid, cache contains additional data like the image keypoints used for registration
 
 # visualize registered images
-moving_image = load_image('assets/image_1.jpg', size=(256, 256), mode='rgb').cuda()
+moving_image = load_image('assets/image_1.jpg', size=(256, 256), mode='rgb').cuda().squeeze(0)
 reg_image = eyeliner.apply_transform(theta, moving_image)
 ```
 
@@ -106,6 +106,16 @@ Output:
         <img src="assets/image_1_reg.jpg" alt="Registered" style="width:256px; height:256px;">
     </div>
 </div>
+
+## Run from command-line!
+
+EyeLiner can also be run on the command line interface to register a pair of images, if installed via pip! Simply run the command:
+
+```bash
+>> eyeliner --fixed-input assets/image_0_vessel.jpg --moving-input assets/image_1_vessel.jpg --moving-image assets/image_1.jpg --reg affine --save registered_moving_image.png --device cuda:0
+```
+
+> Note: This command will only save the registered image, not the registration parameters, so if you want to access the parameters, then you'll have to run eyeliner in a python script as above.
 
 ## Run pipeline on dataset
 
